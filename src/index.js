@@ -1,3 +1,1 @@
-export default () => {
-  return 'it works!';
-}
+export default () => 'it works!';
