@@ -6,6 +6,6 @@ ____________________________________________________
 ## Описание
 Репозиторий с третьим  этапом учебного проекта по професии JS-FrontEnd
 
-git: https://github.com/avel2k6/project-lvl2-s487
+git: https://github.com/avel2k6/frontend-project-lvl3
 
 url: https://rss-reader-avel2k6.surge.sh/
