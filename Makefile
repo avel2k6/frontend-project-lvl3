@@ -1,9 +1,6 @@
 install:
 	npm install
 
-start:
-	npx babel-node src/bin/gendiff.js
-
 publish:
 	npm publish --dry-run
 
@@ -15,3 +12,6 @@ test:
 
 watch:
 	npx jest --watch
+
+build:
+	npm run build

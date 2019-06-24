@@ -1,5 +1,5 @@
-import main from '../src';
+//import main from '../src';
 
 test('Project is working', () => {
-  expect(main()).toBe('it works!');
+  expect('it works!').toBe('it works!');
 });
