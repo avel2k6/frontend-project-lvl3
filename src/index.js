@@ -1,5 +1,6 @@
 import 'bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import $ from 'jquery';
 import isURL from 'validator/lib/isURL';
 import watcher from './watcher';
 import * as feed from './feed';
@@ -10,6 +11,12 @@ const appState = {
   errors: [],
   feeds: [],
   feedsData: [],
+  previewData: null,
+};
+
+const executeState = (statesCollection, executedState) => {
+  const stateExec = statesCollection.get(executedState);
+  stateExec();
 };
 
 const formStates = new Map([
@@ -19,6 +26,17 @@ const formStates = new Map([
   [
     'valid', () => {
       appState.feeds.push(appState.formInput);
+      appState.formState = 'send';
+      executeState(formStates, appState.formState);
+    },
+  ],
+  [
+    'invalid', () => {
+      appState.errors.push(`Непривильный или уже добавленный URL : "${appState.formInput}"`);
+    },
+  ],
+  [
+    'send', () => {
       feed.getFeedData(
         appState.formInput,
         (err, data) => {
@@ -38,20 +56,16 @@ const formStates = new Map([
       appState.formInput = '';
     },
   ],
-  [
-    'invalid', () => {
-      appState.errors.push(`Непривильный или уже добавленный URL : "${appState.formInput}"`);
-    },
-  ],
 ]);
 
 
 const listenForm = () => {
-  const rssFormInput = document.body.querySelector('#rss-input');
-  rssFormInput.addEventListener(
+  const body = $('body');
+  body.on(
     'input',
+    '#rss-input',
     (e) => {
-      const input = e.target.value.trim();
+      const input = $(e.target).val().trim();
       if (isURL(input) && !appState.feeds.includes(input)) {
         appState.formState = 'valid';
       } else {
@@ -61,13 +75,23 @@ const listenForm = () => {
     },
   );
 
-  const rssFormSubmit = document.body.querySelector('#rss-submit');
-  rssFormSubmit.addEventListener(
+  body.on(
     'click',
+    '#rss-submit',
+    () => {
+      executeState(formStates, appState.formState);
+      // const formExec = formStates.get(appState.formState);
+      // formExec();
+      return false;
+    },
+  );
+
+  body.on(
+    'click',
+    '.btn-details',
     (e) => {
-      const formExec = formStates.get(appState.formState);
-      formExec();
-      e.preventDefault();
+      const button = $(e.target);
+      appState.previewData = button.data();
     },
   );
 };

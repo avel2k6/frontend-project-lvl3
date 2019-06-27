@@ -28,7 +28,29 @@ export const getFeedData = (url, callback, attempt = 0) => {
 export const parseFeedData = (data) => {
   const parser = new DOMParser();
   const dom = parser.parseFromString(data, 'application/xml');
-  return (dom.querySelector('rss'))
-    ? dom
-    : null;
+  if (!dom.querySelector('rss')) {
+    return null;
+  }
+  const title = dom.querySelector('channel > title');
+  const link = dom.querySelector('channel > link');
+  const description = dom.querySelector('channel > description');
+  const feddItems = dom.querySelectorAll('item');
+  const items = [...feddItems].map(
+    (item) => {
+      const itemTitle = item.querySelector('title');
+      const itemLink = item.querySelector('link');
+      const itemDescription = item.querySelector('description');
+      return {
+        itemTitle: itemTitle.textContent,
+        itemDescription: itemDescription.textContent,
+        itemLink: itemLink.textContent,
+      };
+    },
+  );
+  return {
+    title: title.textContent,
+    description: description.textContent,
+    source: link.textContent,
+    items,
+  };
 };
