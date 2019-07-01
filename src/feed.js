@@ -31,16 +31,10 @@ export const getFeedData = url => new Promise((feedResolve, feedReject) => {
 
 export const parseFeedData = (dataFromFeed) => {
   const { data, url } = dataFromFeed;
-
   const parser = new DOMParser();
   const dom = parser.parseFromString(data, 'application/xml');
-
   const rssTag = dom.querySelector('rss');
-  if (!rssTag) {
-    return {
-      isRss: false,
-    };
-  }
+  if (!rssTag) { return { isRss: false }; }
 
   const title = dom.querySelector('channel > title');
   const link = dom.querySelector('channel > link');
@@ -95,21 +89,11 @@ export const setAutoUpdater = (curretState, feedTargetUrl) => {
           const oldItems = state.feedsData[index].items;
           currentState.feedsData[index].items = [...oldItems, ...newItems];
         }
-        setTimeout(
-          () => { updater(state, feedUrl); },
-          dataTimeOut,
-        );
+        setTimeout(() => { updater(state, feedUrl); }, dataTimeOut);
       })
       .catch(() => {
-        setTimeout(
-          () => { updater(state, feedUrl); },
-          errorTimeOut,
-        );
+        setTimeout(() => { updater(state, feedUrl); }, errorTimeOut);
       });
   };
-
-  setTimeout(
-    () => { updater(curretState, feedTargetUrl); },
-    dataTimeOut,
-  );
+  setTimeout(() => { updater(curretState, feedTargetUrl); }, dataTimeOut);
 };
