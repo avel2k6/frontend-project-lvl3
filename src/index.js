@@ -2,6 +2,7 @@ import 'bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import $ from 'jquery';
 import isURL from 'validator/lib/isURL';
+import StateMachine from 'javascript-state-machine';
 import watcher from './watcher';
 import * as feed from './feed';
 
@@ -14,60 +15,43 @@ const appState = {
   previewData: null,
 };
 
-const executeState = (statesCollection, executedState) => {
-  const stateExec = statesCollection.get(executedState);
-  stateExec();
-};
 
-const formStates = new Map([
-  [
-    'init', () => {},
+const rssForm = new StateMachine({
+  init: 'default',
+  transitions: [
+    { name: 'validate', from: ['invalid', 'valid', 'default'], to: 'valid' },
+    { name: 'invalidate', from: ['invalid', 'valid', 'default'], to: 'invalid' },
+    { name: 'send', from: 'valid', to: 'default' },
   ],
-  [
-    'valid', () => {
+  methods: {
+    onBeforeTransition() {
+      appState.formInput = $('#rss-input').val().trim();
+    },
+    onTransition({ to }) {
+      appState.formState = to;
+    },
+    onSend() {
       appState.feeds.push(appState.formInput);
-      appState.formState = 'send';
-      executeState(formStates, appState.formState);
-    },
-  ],
-  [
-    'invalid', () => {
-      appState.errors.push(`Непривильный или уже добавленный URL : "${appState.formInput}"`);
-    },
-  ],
-  [
-    'send', () => {
       const url = appState.formInput;
-      feed.getFeedData(
-        url,
-        (err, data) => {
-          if (err) {
-            appState.errors.push(err);
-            return;
-          }
+      feed.getFeedData(url)
+        .then((data) => {
           const parsedData = feed.parseFeedData(data);
-          if (parsedData) {
+          if (parsedData.isRss) {
             appState.feedsData.push(parsedData);
-
-            const updateTime = 10000;
-            const feedAutoUpdater = () => {
-              setTimeout(
-                () => { feed.updateFeedData(appState, url, feedAutoUpdater); },
-                updateTime,
-              );
-            };
-            feedAutoUpdater();
+            feed.setAutoUpdater(appState, url);
             return;
           }
-          appState.errors.push(`${appState.formInput} не похоже на RSS-фид`);
-        },
-      );
+          appState.errors.push(`${url} не похоже на RSS-фид`);
+        })
+        .catch((err) => {
+          appState.errors.push(`Не удалось получить фид ${url} после нескольких попыток <br>${err}`);
+        });
+
       appState.formState = 'init';
       appState.formInput = '';
     },
-  ],
-]);
-
+  },
+});
 
 const listenForm = () => {
   const body = $('body');
@@ -77,11 +61,10 @@ const listenForm = () => {
     (e) => {
       const input = $(e.target).val().trim();
       if (isURL(input) && !appState.feeds.includes(input)) {
-        appState.formState = 'valid';
+        rssForm.validate();
       } else {
-        appState.formState = 'invalid';
+        rssForm.invalidate();
       }
-      appState.formInput = input;
     },
   );
 
@@ -89,9 +72,9 @@ const listenForm = () => {
     'click',
     '#rss-submit',
     () => {
-      executeState(formStates, appState.formState);
-      // const formExec = formStates.get(appState.formState);
-      // formExec();
+      if (rssForm.can('send')) {
+        rssForm.send();
+      }
       return false;
     },
   );

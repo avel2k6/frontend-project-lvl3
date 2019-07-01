@@ -1,35 +1,46 @@
 import axios from 'axios';
 
-export const getFeedData = (url, callback, attempt = 0) => {
-  // https://corsproxy.github.io/ не работает.
-  // cors-anywhere.herokuapp.com требует кастомные заголовки, чтобы отсечь левые запросы
-  axios({
-    method: 'get',
-    url: `https://cors-anywhere.herokuapp.com/${url}`,
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-  })
-    .then((response) => {
-      const { data } = response;
-      callback(null, { data, url });
+export const getFeedData = url => new Promise((feedResolve, feedReject) => {
+  const timeOutTime = 3000;
+  const maximumAttempts = 3;
+  const tryToGetData = (resolve, reject, attempt = 0) => {
+    // https://corsproxy.github.io/ не работает.
+    // cors-anywhere.herokuapp.com требует кастомные заголовки, чтобы отсечь левые запросы
+    axios({
+      method: 'get',
+      url: `https://cors-anywhere.herokuapp.com/${url}`,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
     })
-    .catch((error) => {
-      if (attempt < 2) {
-        callback('Не удалось получить фид, пробую еще раз...');
-        setTimeout(
-          () => { getFeedData(url, callback, attempt + 1); },
-          3000,
-        );
-      } else {
-        callback(`Не удалось получть фид по адресу ${url}, я сдаюсь<br> ${error}`);
-      }
-    });
-};
+      .then((response) => {
+        const { data } = response;
+        resolve({ data, url });
+      })
+      .catch((error) => {
+        if (attempt < maximumAttempts) {
+          setTimeout(
+            () => { tryToGetData(resolve, reject, attempt + 1); },
+            timeOutTime,
+          );
+        } else {
+          reject(error);
+        }
+      });
+  };
+  tryToGetData(feedResolve, feedReject);
+});
 
 export const parseFeedData = (dataFromFeed) => {
   const { data, url } = dataFromFeed;
 
   const parser = new DOMParser();
   const dom = parser.parseFromString(data, 'application/xml');
+
+  const rssTag = dom.querySelector('rss');
+  if (!rssTag) {
+    return {
+      isRss: false,
+    };
+  }
 
   const title = dom.querySelector('channel > title');
   const link = dom.querySelector('channel > link');
@@ -53,6 +64,7 @@ export const parseFeedData = (dataFromFeed) => {
     source: link.textContent,
     url,
     items,
+    isRss: true,
   };
 };
 
@@ -68,45 +80,36 @@ export const getFeedDiff = (oldFeed, newFeed) => {
   );
 };
 
-export const updateFeedData = (state, feedUrl, callback) => {
-  const currentState = state; // Перепиать в коллбек
-  const currentData = state.feedsData.find(({ url }) => url === feedUrl);
-  const index = state.feedsData.findIndex(({ url }) => url === feedUrl);
-  getFeedData(
-    currentData.url,
-    (err, data) => {
-      if (err) {
-        callback(err);
-        return;
-      }
-      const newData = parseFeedData(data);
-      const newItems = getFeedDiff(currentData, newData);
-      if (newItems.length > 0) {
-        console.log(newItems);
-        const oldItems = state.feedsData[index].items;
-        currentState.feedsData[index].items = [...oldItems, ...newItems];
-      }
-      callback(null, data);
-    },
+export const setAutoUpdater = (curretState, feedTargetUrl) => {
+  const dataTimeOut = 5000;
+  const errorTimeOut = 30000;
+  const updater = (state, feedUrl) => {
+    getFeedData(feedUrl)
+      .then((newData) => {
+        const newParsedData = parseFeedData(newData);
+        const currentState = state;
+        const currentData = state.feedsData.find(({ url }) => url === feedUrl);
+        const index = state.feedsData.findIndex(({ url }) => url === feedUrl);
+        const newItems = getFeedDiff(currentData, newParsedData);
+        if (newItems.length > 0) {
+          const oldItems = state.feedsData[index].items;
+          currentState.feedsData[index].items = [...oldItems, ...newItems];
+        }
+        setTimeout(
+          () => { updater(state, feedUrl); },
+          dataTimeOut,
+        );
+      })
+      .catch(() => {
+        setTimeout(
+          () => { updater(state, feedUrl); },
+          errorTimeOut,
+        );
+      });
+  };
+
+  setTimeout(
+    () => { updater(curretState, feedTargetUrl); },
+    dataTimeOut,
   );
 };
-
-// export const updateFeedData2 = (currentData, index, state, callback) => {
-//   getFeedData(
-//     currentData.url,
-//     (err, data) => {
-//       if (err) {
-//         callback(err);
-//         return;
-//       }
-//       const newData = parseFeedData(data);
-//       const newItems = getFeedDiff(currentData, newData);
-//       if (newItems.length > 0) {
-//         console.log(newItems);
-//         const oldItems = state.feedsData[index].items;
-//         state.feedsData[index].items = [...oldItems, ...newItems];
-//       }
-//       callback(null,data);
-//     },
-//   );
-// };

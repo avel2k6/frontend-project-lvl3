@@ -79,16 +79,6 @@ export default (state) => {
     'feedsData',
     (prop, action, newData, oldData) => {
       $('#search-spinner').remove();
-      console.log(`new watch feed ${action}---------------`);
-      console.dir(newData);
-      console.dir(oldData);
-      const newItems = _.difference(newData, oldData);
-      console.dir(newItems);
-      console.log('watch feed  END---------------');
-      // const feedData = (action === 'push')
-      //   ? newData
-      //   : findFeedByData(state, oldData);
-      // console.log(feedData);
 
       if (action === 'push') {
         const {
