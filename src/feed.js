@@ -10,7 +10,7 @@ export const getFeedData = (url, callback, attempt = 0) => {
   })
     .then((response) => {
       const { data } = response;
-      callback(null, data);
+      callback(null, { data, url });
     })
     .catch((error) => {
       if (attempt < 2) {
@@ -25,12 +25,12 @@ export const getFeedData = (url, callback, attempt = 0) => {
     });
 };
 
-export const parseFeedData = (data) => {
+export const parseFeedData = (dataFromFeed) => {
+  const { data, url } = dataFromFeed;
+
   const parser = new DOMParser();
   const dom = parser.parseFromString(data, 'application/xml');
-  if (!dom.querySelector('rss')) {
-    return null;
-  }
+
   const title = dom.querySelector('channel > title');
   const link = dom.querySelector('channel > link');
   const description = dom.querySelector('channel > description');
@@ -51,6 +51,62 @@ export const parseFeedData = (data) => {
     title: title.textContent,
     description: description.textContent,
     source: link.textContent,
+    url,
     items,
   };
 };
+
+export const getFeedDiff = (oldFeed, newFeed) => {
+  const { items: oldItems } = oldFeed;
+  const { items: newItems } = newFeed;
+  return newItems.reduce(
+    (acc, newItem) => (oldItems
+      .find(({ itemLink }) => itemLink === newItem.itemLink)
+      ? [...acc]
+      : [...acc, newItem]),
+    [],
+  );
+};
+
+export const updateFeedData = (state, feedUrl, callback) => {
+  const currentState = state; // Перепиать в коллбек
+  const currentData = state.feedsData.find(({ url }) => url === feedUrl);
+  const index = state.feedsData.findIndex(({ url }) => url === feedUrl);
+  getFeedData(
+    currentData.url,
+    (err, data) => {
+      if (err) {
+        callback(err);
+        return;
+      }
+      const newData = parseFeedData(data);
+      const newItems = getFeedDiff(currentData, newData);
+      if (newItems.length > 0) {
+        console.log(newItems);
+        const oldItems = state.feedsData[index].items;
+        currentState.feedsData[index].items = [...oldItems, ...newItems];
+      }
+      callback(null, data);
+    },
+  );
+};
+
+// export const updateFeedData2 = (currentData, index, state, callback) => {
+//   getFeedData(
+//     currentData.url,
+//     (err, data) => {
+//       if (err) {
+//         callback(err);
+//         return;
+//       }
+//       const newData = parseFeedData(data);
+//       const newItems = getFeedDiff(currentData, newData);
+//       if (newItems.length > 0) {
+//         console.log(newItems);
+//         const oldItems = state.feedsData[index].items;
+//         state.feedsData[index].items = [...oldItems, ...newItems];
+//       }
+//       callback(null,data);
+//     },
+//   );
+// };

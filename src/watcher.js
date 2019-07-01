@@ -1,22 +1,44 @@
 import { watch } from 'melanke-watchjs';
 import $ from 'jquery';
+import _ from 'lodash';
+import md5 from 'md5';
 
-const generateId = () => `f${(+new Date()).toString(16)}`;
+const generateId = string => ((string)
+  ? md5(string).substr(0, 8)
+  : `f${(+new Date()).toString(16)}`);
+
+const findFeedByData = (state, data) => state.feedsData.find(({ items }) => items[0] === data[0]);
 
 const prettyHTML = (string) => {
   const parser = new DOMParser();
   const dom = parser.parseFromString(string, 'text/html');
   $(dom).find('img').removeAttr('height').removeAttr('width')
     .addClass('img-fluid');
-  console.log(dom);
   return dom.body.innerHTML;
 };
+
+const makeFeedItemsList = (items, source) => items.map((item) => {
+  const { itemTitle, itemLink } = item;
+  return `
+      <div class="d-flex align-items-end flex-column bd-highlight col-sm-3 mb-3" >
+        <div class="p-2 w-100">
+          <a target='_blank' class='text-dark' href='${itemLink}'>
+            ${itemTitle.trim()}
+          </a>
+        </div>
+        <div class="mt-auto p-2 w-100">
+          <hr class="my-2">
+          <button data-link="${itemLink}" data-source="${source}" data-toggle="modal" data-target="#rssModal" type="button" class="btn btn-secondary btn-details">Подробней</button>
+        </div>
+      </div>
+      `;
+})
+  .join('');
 
 export default (state) => {
   const formInput = document.body.querySelector('#rss-input');
   const formSubmit = document.body.querySelector('#rss-submit');
   const formFeedsList = $('#feeds-list > ul');
-  const formFeedsContent = $('#feeds-content');
   const infoBlock = document.body.querySelector('info');
 
   watch(
@@ -25,7 +47,6 @@ export default (state) => {
     () => {
       switch (state.formState) {
         case 'valid':
-          console.log('valid');
           $(formInput).addClass('is-valid').removeClass('is-invalid');
           $(formSubmit).prop('disabled', false);
           break;
@@ -56,36 +77,42 @@ export default (state) => {
   watch(
     state,
     'feedsData',
-    (prop, action, newFeed) => {
+    (prop, action, newData, oldData) => {
       $('#search-spinner').remove();
-      const {
-        title, description, items, source,
-      } = newFeed;
-      $('<li>', { html: `<b>${title}</b><br>${description}` }).appendTo(formFeedsList);
+      console.log(`new watch feed ${action}---------------`);
+      console.dir(newData);
+      console.dir(oldData);
+      const newItems = _.difference(newData, oldData);
+      console.dir(newItems);
+      console.log('watch feed  END---------------');
+      // const feedData = (action === 'push')
+      //   ? newData
+      //   : findFeedByData(state, oldData);
+      // console.log(feedData);
 
-      const contentDiv = document.createElement('div');
-      contentDiv.classList.add('row');
-      const headerDiv = document.createElement('div');
-      headerDiv.classList.add('col-sm-12');
-      headerDiv.innerHTML = `<h2>${title}</h2>`;
-      contentDiv.append(headerDiv);
-      items.forEach(
-        (item, index) => {
-          const { itemTitle, itemLink } = item;
-          const itemDiv = document.createElement('div');
-          itemDiv.classList.add('col-sm-4', 'p-2');
+      if (action === 'push') {
+        const {
+          title, description, items, source, url,
+        } = newData;
+        $('<li>', { html: `<b>${title}</b><br>${description}` }).appendTo(formFeedsList);
+        $('<div>', { html: `<h2 class="w-100">${title}</h2>` })
+          .appendTo('#feeds-content');
+        const feedContentId = generateId(url);
+        $('<div>', { class: 'row bg-white p-1', 'data-feed-source': `${feedContentId}` })
+          .appendTo('#feeds-content');
+        const feedItemsList = makeFeedItemsList(items, source);
+        $(feedItemsList).appendTo(`[data-feed-source='${feedContentId}']`);
+      }
 
-          const innerDiv = document.createElement('div');
-          innerDiv.classList.add('bg-white', 'col-sm', 'rounded', 'h-100', 'p-2', 'row');
-          innerDiv.innerHTML += `<div class="col-12 align-self-start"'><a target='_blank' class='text-dark' href='${itemLink}'>${itemTitle.trim()}</a></div>`;
-          innerDiv.innerHTML += `<div class="col-12 align-self-end"><hr class="my-2"><button data-index="${index}" data-source="${source}" data-toggle="modal" data-target="#rssModal" type="button" class="btn btn-secondary btn-details">Подробней</button><div>`;
-
-          itemDiv.append(innerDiv);
-
-          contentDiv.append(itemDiv);
-        },
-      );
-      $(contentDiv).appendTo(formFeedsContent);
+      if (action === 'set') {
+        const {
+          source, url,
+        } = findFeedByData(state, oldData);
+        const items = _.difference(newData, oldData);
+        const feedContentId = generateId(url);
+        const feedItemsList = makeFeedItemsList(items, source);
+        $(feedItemsList).prependTo(`[data-feed-source='${feedContentId}']`);
+      }
     },
   );
 
@@ -93,10 +120,6 @@ export default (state) => {
     state,
     'errors',
     (prop, action, newError) => {
-      // const div = document.createElement('div');
-      // div.classList.add('alert', 'alert-danger');
-      // div.innerHTML = newError;
-      // infoBlock.append(div);
       const id = generateId();
       $(`<div id ='${id}' class='alert alert-danger'>${newError}</div>`).appendTo(infoBlock);
       setTimeout(() => $(`#${id}`).fadeOut(), 7000);
@@ -108,11 +131,12 @@ export default (state) => {
     state,
     'previewData',
     (prop, action, newData) => {
-      const { index: detailsIndex, source: detailsSource } = newData;
+      const { link: detailsLink, source: detailsSource } = newData;
       const { feedsData } = state;
       const { itemTitle, itemDescription } = feedsData
         .find(({ source }) => source === detailsSource)
-        .items[detailsIndex];
+        .items
+        .find(({ itemLink }) => itemLink === detailsLink);
       // console.dir(itemTitle, itemDescription);
       const prettyDescription = prettyHTML(itemDescription);
       $('.modal-title').text(itemTitle);

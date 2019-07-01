@@ -37,8 +37,9 @@ const formStates = new Map([
   ],
   [
     'send', () => {
+      const url = appState.formInput;
       feed.getFeedData(
-        appState.formInput,
+        url,
         (err, data) => {
           if (err) {
             appState.errors.push(err);
@@ -47,6 +48,15 @@ const formStates = new Map([
           const parsedData = feed.parseFeedData(data);
           if (parsedData) {
             appState.feedsData.push(parsedData);
+
+            const updateTime = 10000;
+            const feedAutoUpdater = () => {
+              setTimeout(
+                () => { feed.updateFeedData(appState, url, feedAutoUpdater); },
+                updateTime,
+              );
+            };
+            feedAutoUpdater();
             return;
           }
           appState.errors.push(`${appState.formInput} не похоже на RSS-фид`);
