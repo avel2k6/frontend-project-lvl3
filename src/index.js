@@ -3,7 +3,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import $ from 'jquery';
 import isURL from 'validator/lib/isURL';
 import StateMachine from 'javascript-state-machine';
-import watcher from './watcher';
+import modifyForm from './watcher';
 import * as feed from './feed';
 
 const appState = {
@@ -15,52 +15,52 @@ const appState = {
   previewData: null,
 };
 
+const controlForm = (formCurrentState) => {
+  const state = formCurrentState;
+  const rssForm = new StateMachine({
+    init: 'default',
+    transitions: [
+      { name: 'validate', from: ['invalid', 'valid', 'default'], to: 'valid' },
+      { name: 'invalidate', from: ['invalid', 'valid', 'default'], to: 'invalid' },
+      { name: 'send', from: 'valid', to: 'default' },
+    ],
+    methods: {
+      onBeforeTransition() {
+        state.formInput = $('#rss-input').val().trim();
+      },
+      onTransition({ to }) {
+        state.formState = to;
+      },
+      onSend() {
+        state.feeds.push(appState.formInput);
+        const url = state.formInput;
+        feed.getFeedData(url)
+          .then((data) => {
+            const parsedData = feed.parseFeedData(data);
+            if (parsedData.isRss) {
+              state.feedsData.push(parsedData);
+              feed.setAutoUpdater(state, url);
+              return;
+            }
+            state.errors.push(`${url} не похоже на RSS-фид`);
+          })
+          .catch((err) => {
+            state.errors.push(`Не удалось получить фид ${url} после нескольких попыток <br>${err}`);
+          });
 
-const rssForm = new StateMachine({
-  init: 'default',
-  transitions: [
-    { name: 'validate', from: ['invalid', 'valid', 'default'], to: 'valid' },
-    { name: 'invalidate', from: ['invalid', 'valid', 'default'], to: 'invalid' },
-    { name: 'send', from: 'valid', to: 'default' },
-  ],
-  methods: {
-    onBeforeTransition() {
-      appState.formInput = $('#rss-input').val().trim();
+        state.formState = 'init';
+        state.formInput = '';
+      },
     },
-    onTransition({ to }) {
-      appState.formState = to;
-    },
-    onSend() {
-      appState.feeds.push(appState.formInput);
-      const url = appState.formInput;
-      feed.getFeedData(url)
-        .then((data) => {
-          const parsedData = feed.parseFeedData(data);
-          if (parsedData.isRss) {
-            appState.feedsData.push(parsedData);
-            feed.setAutoUpdater(appState, url);
-            return;
-          }
-          appState.errors.push(`${url} не похоже на RSS-фид`);
-        })
-        .catch((err) => {
-          appState.errors.push(`Не удалось получить фид ${url} после нескольких попыток <br>${err}`);
-        });
+  });
 
-      appState.formState = 'init';
-      appState.formInput = '';
-    },
-  },
-});
-
-const listenForm = () => {
   const body = $('body');
   body.on(
     'input',
     '#rss-input',
     (e) => {
       const input = $(e.target).val().trim();
-      if (isURL(input) && !appState.feeds.includes(input)) {
+      if (isURL(input) && !state.feeds.includes(input)) {
         rssForm.validate();
       } else {
         rssForm.invalidate();
@@ -84,10 +84,10 @@ const listenForm = () => {
     '.btn-details',
     (e) => {
       const button = $(e.target);
-      appState.previewData = button.data();
+      state.previewData = button.data();
     },
   );
 };
 
-listenForm();
-watcher(appState);
+controlForm(appState);
+modifyForm(appState);
