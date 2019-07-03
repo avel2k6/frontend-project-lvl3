@@ -1,6 +1,5 @@
 import 'bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import $ from 'jquery';
 import isURL from 'validator/lib/isURL';
 import StateMachine from 'javascript-state-machine';
 import modifyForm from './watcher';
@@ -29,7 +28,7 @@ const app = () => {
       ],
       methods: {
         onBeforeTransition() {
-          state.formInput = $('#rss-input').val().trim();
+          state.formInput = document.body.querySelector('#rss-input').value.trim();
         },
         onTransition({ to }) {
           state.formState = to;
@@ -63,12 +62,11 @@ const app = () => {
       },
     });
 
-    const body = $('body');
-    body.on(
+    const formInput = document.body.querySelector('#rss-input');
+    formInput.addEventListener(
       'input',
-      '#rss-input',
       (e) => {
-        const input = $(e.target).val().trim();
+        const input = e.target.value.trim();
         if (isURL(input) && !state.feeds.includes(input)) {
           rssForm.validate();
         } else {
@@ -77,23 +75,26 @@ const app = () => {
       },
     );
 
-    body.on(
+    const formSubmitButton = document.body.querySelector('#rss-submit');
+    formSubmitButton.addEventListener(
       'click',
-      '#rss-submit',
-      () => {
+      (e) => {
         if (rssForm.can('send')) {
           rssForm.send();
         }
-        return false;
+        e.preventDefault();
       },
     );
 
-    body.on(
+    const rssContentButton = document.body.querySelector('#feeds-content');
+    rssContentButton.addEventListener(
       'click',
-      '.btn-details',
       (e) => {
-        const button = $(e.target);
-        state.previewData = button.data();
+        const { target } = e;
+        if (target.classList.contains('btn-details')) {
+          const { link, source } = target.dataset;
+          state.previewData = { link, source };
+        }
       },
     );
   };
