@@ -2,6 +2,8 @@ import { watch } from 'melanke-watchjs';
 import $ from 'jquery';
 import _ from 'lodash';
 import md5 from 'md5';
+import i18next from 'i18next';
+import ruJson from '../assets/i18/ru.json';
 
 const generateId = string => ((string)
   ? md5(string).substr(0, 8)
@@ -36,6 +38,12 @@ const makeFeedItemsList = (items, source) => items.map((item) => {
   .join('');
 
 export default (state) => {
+  i18next.init({
+    lng: 'ru',
+    resources: ruJson,
+  });
+
+
   const formInput = document.body.querySelector('#rss-input');
   const formSubmit = document.body.querySelector('#rss-submit');
   const formFeedsList = $('#feeds-list > ul');
@@ -45,6 +53,7 @@ export default (state) => {
     state,
     'formState',
     () => {
+      console.log(state.formState);
       switch (state.formState) {
         case 'valid':
           $(formInput).addClass('is-valid').removeClass('is-invalid');
@@ -52,6 +61,10 @@ export default (state) => {
           break;
         case 'invalid':
           $(formInput).addClass('is-invalid').removeClass('is-valid');
+          $(formSubmit).prop('disabled', true);
+          break;
+        case 'check':
+          $(formInput).removeClass('is-invalid').removeClass('is-valid');
           $(formSubmit).prop('disabled', true);
           break;
         default:
@@ -110,12 +123,19 @@ export default (state) => {
     state,
     'errors',
     (prop, action, newError) => {
+      if (state.errors.length === 0) {
+        return;
+      }
       const id = generateId();
-      $(`<div id ='${id}' class='alert alert-danger'>${newError}</div>`).appendTo(infoBlock);
+      const { messageKey, messageData } = newError;
+      const message = i18next.t(messageKey, messageData);
+      $(`<div id ='${id}' class='shadow alert alert-danger mt-2'>${message}</div>`).appendTo(infoBlock);
       setTimeout(() => $(`#${id}`).fadeOut(), 7000);
       setTimeout(() => $(`#${id}`).remove(), 8000);
     },
   );
+
+  // console.log(i18next.t('cant_get_feed', {url: 'u2r2l', err: 'ERRRRRRR!'}));
 
   watch(
     state,

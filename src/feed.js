@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 export const getFeedData = url => new Promise((feedResolve, feedReject) => {
-  const timeOutTime = 3000;
-  const maximumAttempts = 3;
+  const timeOutTime = 1000;
+  const maximumNewAttempts = 2;
   const tryToGetData = (resolve, reject, attempt = 0) => {
     // https://corsproxy.github.io/ не работает.
     // cors-anywhere.herokuapp.com требует кастомные заголовки, чтобы отсечь левые запросы
@@ -16,7 +16,7 @@ export const getFeedData = url => new Promise((feedResolve, feedReject) => {
         resolve({ data, url });
       })
       .catch((error) => {
-        if (attempt < maximumAttempts) {
+        if (attempt < maximumNewAttempts) {
           setTimeout(
             () => { tryToGetData(resolve, reject, attempt + 1); },
             timeOutTime,
