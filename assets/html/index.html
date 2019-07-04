@@ -21,11 +21,12 @@
          <div class="form-group">
            <input id="rss-input" type="text" name="rss" value="" class="form-control" placeholder="https://www.ur-rss.com/feed/">
          </div>
-         <input id="rss-submit" type="submit" class="btn btn-primary btn-lg" disabled>
+         <input id="rss-submit" type="submit" class="btn btn-primary btn-lg" disabled="true">
        </form>
        <hr class="my-4">
        <div id='feeds-list'>
          <ul>
+           <li id="search-spinner" class="d-none"><div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div></li>
          </ul>
        </div>
      </div>

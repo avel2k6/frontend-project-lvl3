@@ -1,5 +1,4 @@
 import { watch } from 'melanke-watchjs';
-import $ from 'jquery';
 import _ from 'lodash';
 import md5 from 'md5';
 import i18next from 'i18next';
@@ -14,16 +13,22 @@ const findFeedByData = (state, data) => state.feedsData.find(({ items }) => item
 const prettyHTML = (string) => {
   const parser = new DOMParser();
   const dom = parser.parseFromString(string, 'text/html');
-  $(dom).find('img').removeAttr('height').removeAttr('width')
-    .addClass('img-fluid');
+
+  const images = dom.querySelectorAll('img');
+  images.forEach((image) => {
+    image.removeAttribute('height');
+    image.removeAttribute('width');
+    image.classList.add('img-fluid');
+  });
   return dom.body.innerHTML;
 };
 
-const makeFeedItemsList = (items, source) => items.map((item) => {
-  const { itemTitle, itemLink } = item;
-  return `
-      <div class="d-flex align-items-end flex-column bd-highlight col-sm-3 mb-3" >
-        <div class="p-2 w-100">
+const makeFeedItemsCollection = (items, source) => items.map(
+  (item) => {
+    const { itemTitle, itemLink } = item;
+    const itemDiv = document.createElement('div');
+    itemDiv.classList.add('d-flex', 'align-items-end', 'flex-column', 'col-sm-3', 'mb-3');
+    itemDiv.innerHTML = `<div class="p-2 w-100">
           <a target='_blank' class='text-dark' href='${itemLink}'>
             ${itemTitle.trim()}
           </a>
@@ -32,10 +37,11 @@ const makeFeedItemsList = (items, source) => items.map((item) => {
           <hr class="my-2">
           <button data-link="${itemLink}" data-source="${source}" data-toggle="modal" data-target="#rssModal" type="button" class="btn btn-secondary btn-details">Подробней</button>
         </div>
-      </div>
       `;
-})
-  .join('');
+    return itemDiv;
+  },
+)
+  .reverse();
 
 export default (state) => {
   i18next.init({
@@ -43,46 +49,39 @@ export default (state) => {
     resources: ruJson,
   });
 
-
   const formInput = document.body.querySelector('#rss-input');
   const formSubmit = document.body.querySelector('#rss-submit');
-  const formFeedsList = $('#feeds-list > ul');
+  const formFeedsList = document.body.querySelector('#feeds-list > ul');
   const infoBlock = document.body.querySelector('info');
+  const spinner = document.body.querySelector('#search-spinner');
 
   watch(
     state,
     'formState',
     () => {
-      console.log(state.formState);
       switch (state.formState) {
         case 'valid':
-          $(formInput).addClass('is-valid').removeClass('is-invalid');
-          $(formSubmit).prop('disabled', false);
+          formInput.classList.add('is-valid');
+          formInput.classList.remove('is-invalid');
+          formSubmit.removeAttribute('disabled');
           break;
         case 'invalid':
-          $(formInput).addClass('is-invalid').removeClass('is-valid');
-          $(formSubmit).prop('disabled', true);
+          formInput.classList.add('is-invalid');
+          formInput.classList.remove('is-valid');
+          formSubmit.setAttribute('disabled', true);
+          spinner.classList.add('d-none');
           break;
         case 'check':
-          $(formInput).removeClass('is-invalid').removeClass('is-valid');
-          $(formSubmit).prop('disabled', true);
+          formInput.classList.remove('is-valid', 'is-invalid');
+          formSubmit.setAttribute('disabled', true);
+          spinner.classList.remove('d-none');
           break;
         default:
           formInput.value = '';
-          $(formInput).removeClass('is-invalid is-valid');
-          $(formSubmit).prop('disabled', true);
+          formInput.classList.remove('is-valid', 'is-invalid');
+          formSubmit.setAttribute('disabled', true);
+          spinner.classList.add('d-none');
           break;
-      }
-    },
-  );
-  watch(
-    state,
-    'feeds',
-    (prop, action, newFeedUrl) => {
-      if (newFeedUrl) {
-        const spinner = '<li id="search-spinner"><div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div></li>';
-        $(spinner).appendTo(formFeedsList);
-        setTimeout(() => $('#search-spinner').remove(), 5000);
       }
     },
   );
@@ -91,20 +90,31 @@ export default (state) => {
     state,
     'feedsData',
     (prop, action, newData, oldData) => {
-      $('#search-spinner').remove();
-
       if (action === 'push') {
         const {
           title, description, items, source, url,
         } = newData;
-        $('<li>', { html: `<b>${title}</b><br>${description}` }).appendTo(formFeedsList);
-        $('<div>', { html: `<h2 class="w-100">${title}</h2>` })
-          .appendTo('#feeds-content');
+
+        const newListElement = document.createElement('li');
+        newListElement.innerHTML = `<b>${title}</b><br>${description}`;
+        formFeedsList.append(newListElement);
+
+        const allFeedsContent = document.body.querySelector('#feeds-content');
+        const feedHeader = document.createElement('div');
+        feedHeader.innerHTML = `<h2 class="w-100">${title}</h2>`;
+        allFeedsContent.append(feedHeader);
+
         const feedContentId = generateId(url);
-        $('<div>', { class: 'row bg-white p-1', 'data-feed-source': `${feedContentId}` })
-          .appendTo('#feeds-content');
-        const feedItemsList = makeFeedItemsList(items, source);
-        $(feedItemsList).appendTo(`[data-feed-source='${feedContentId}']`);
+
+        const currentFeedContent = document.createElement('div');
+        currentFeedContent.classList.add('row', 'bg-white');
+        currentFeedContent.setAttribute('data-feed-source', feedContentId);
+        allFeedsContent.append(currentFeedContent);
+
+        const feedItemsList = makeFeedItemsCollection(items, source);
+        feedItemsList.forEach(
+          feedItem => currentFeedContent.prepend(feedItem),
+        );
       }
 
       if (action === 'set') {
@@ -113,8 +123,11 @@ export default (state) => {
         } = findFeedByData(state, oldData);
         const items = _.difference(newData, oldData);
         const feedContentId = generateId(url);
-        const feedItemsList = makeFeedItemsList(items, source);
-        $(feedItemsList).prependTo(`[data-feed-source='${feedContentId}']`);
+        const feedItemsList = makeFeedItemsCollection(items, source);
+        const currentFeedContent = document.body.querySelector(`[data-feed-source='${feedContentId}']`);
+        feedItemsList.forEach(
+          feedItem => currentFeedContent.prepend(feedItem),
+        );
       }
     },
   );
@@ -126,16 +139,18 @@ export default (state) => {
       if (state.errors.length === 0) {
         return;
       }
-      const id = generateId();
       const { messageKey, messageData } = newError;
       const message = i18next.t(messageKey, messageData);
-      $(`<div id ='${id}' class='shadow alert alert-danger mt-2'>${message}</div>`).appendTo(infoBlock);
-      setTimeout(() => $(`#${id}`).fadeOut(), 7000);
-      setTimeout(() => $(`#${id}`).remove(), 8000);
+      const messageDiv = document.createElement('div');
+      messageDiv.classList.add('shadow', 'alert', 'alert-danger', 'mt-2');
+      messageDiv.innerHTML = message;
+      infoBlock.append(messageDiv);
+      setTimeout(
+        () => infoBlock.removeChild(messageDiv),
+        7000,
+      );
     },
   );
-
-  // console.log(i18next.t('cant_get_feed', {url: 'u2r2l', err: 'ERRRRRRR!'}));
 
   watch(
     state,
@@ -149,8 +164,10 @@ export default (state) => {
         .find(({ itemLink }) => itemLink === detailsLink);
       // console.dir(itemTitle, itemDescription);
       const prettyDescription = prettyHTML(itemDescription);
-      $('.modal-title').text(itemTitle);
-      $('.modal-body').html(prettyDescription);
+      const modalTitle = document.body.querySelector('.modal-title');
+      modalTitle.innerHTML = itemTitle;
+      const modalBody = document.body.querySelector('.modal-body');
+      modalBody.innerHTML = prettyDescription;
     },
   );
 };
