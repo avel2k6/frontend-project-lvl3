@@ -6,7 +6,7 @@ import ruJson from '../assets/i18/ru.json';
 
 const generateId = string => ((string)
   ? md5(string).substr(0, 8)
-  : `f${(+new Date()).toString(16)}`);
+  : _.uniqueId('uniq_'));
 
 const findFeedByData = (state, data) => state.feedsData.find(({ items }) => items[0] === data[0]);
 

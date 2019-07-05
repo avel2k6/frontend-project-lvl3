@@ -27,7 +27,7 @@ module.exports = {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      title: 'My App',
+      title: `My RSS reader | Build ${new Date()}`,
       template: 'assets/html/index.html',
       filename: 'index.html',
     }),

@@ -1,38 +1,39 @@
 import axios from 'axios';
+import { retry } from '@lifeomic/attempt'; // https://github.com/lifeomic/attempt
 
 export const getFeedData = url => new Promise((feedResolve, feedReject) => {
-  const timeOutTime = 1000;
-  const maximumNewAttempts = 2;
-  const tryToGetData = (resolve, reject, attempt = 0) => {
-    // https://corsproxy.github.io/ не работает.
-    // cors-anywhere.herokuapp.com требует кастомные заголовки, чтобы отсечь левые запросы
-    axios({
-      method: 'get',
-      url: `https://cors-anywhere.herokuapp.com/${url}`,
-      headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    })
-      .then((response) => {
-        const { data } = response;
-        resolve({ data, url });
-      })
-      .catch((error) => {
-        if (attempt < maximumNewAttempts) {
-          setTimeout(
-            () => { tryToGetData(resolve, reject, attempt + 1); },
-            timeOutTime,
-          );
-        } else {
-          reject(error);
-        }
-      });
+  const retryOptions = {
+    delay: 300,
+    maxAttempts: 3,
+    initialDelay: 0,
+    minDelay: 0,
+    maxDelay: 0,
+    factor: 0,
+    timeout: 0,
+    jitter: false,
+    handleError: null,
+    handleTimeout: null,
+    beforeAttempt: null,
+    calculateDelay: null,
   };
-  tryToGetData(feedResolve, feedReject);
+
+  retry(() => axios({
+    method: 'get',
+    url: `https://cors-anywhere.herokuapp.com/${url}`,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  }),
+  retryOptions)
+    .then((data) => {
+      feedResolve(data);
+    })
+    .catch((error) => {
+      feedReject(error);
+    });
 });
 
 export const parseFeedData = (dataFromFeed) => {
-  const { data, url } = dataFromFeed;
   const parser = new DOMParser();
-  const dom = parser.parseFromString(data, 'application/xml');
+  const dom = parser.parseFromString(dataFromFeed.data, 'application/xml');
   const rssTag = dom.querySelector('rss');
   if (!rssTag) { return { isRss: false }; }
 
@@ -56,7 +57,6 @@ export const parseFeedData = (dataFromFeed) => {
     title: title.textContent,
     description: description.textContent,
     source: link.textContent,
-    url,
     items,
     isRss: true,
   };

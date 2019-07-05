@@ -28,7 +28,7 @@ const app = () => {
       ],
       methods: {
         onBeforeTransition() {
-          state.formInput = document.body.querySelector('#rss-input').value.trim();
+          state.formInput = document.querySelector('#rss-input').value.trim();
         },
         onTransition({ to }) {
           state.formState = to;
@@ -39,30 +39,33 @@ const app = () => {
           }
         },
         onSend() {
-          state.feeds.push(appState.formInput);
-          const url = state.formInput;
-          feed.getFeedData(url)
-            .then((data) => {
-              const parsedData = feed.parseFeedData(data);
-              if (parsedData.isRss) {
-                state.feedsData.push(parsedData);
-                state.errors = [];
-                rssForm.reset();
-                feed.setAutoUpdater(state, url);
-                return;
-              }
-              state.errors.push({ messageKey: 'is_not_rss', messageData: { url } });
-              rssForm.reject();
-            })
-            .catch((err) => {
-              state.errors.push({ messageKey: 'cant_get_feed', messageData: { url, err } });
-              rssForm.reject();
-            });
+          return (formInputData) => {
+            const formData = new FormData(formInputData);
+            const url = formData.get('rss-url').trim();
+            state.feeds.push(url);
+            feed.getFeedData(url)
+              .then((data) => {
+                const parsedData = feed.parseFeedData(data);
+                if (parsedData.isRss) {
+                  state.feedsData.push({ url, ...parsedData });
+                  state.errors = [];
+                  rssForm.reset();
+                  feed.setAutoUpdater(state, url);
+                  return;
+                }
+                state.errors.push({ messageKey: 'is_not_rss', messageData: { url } });
+                rssForm.reject();
+              })
+              .catch((err) => {
+                state.errors.push({ messageKey: 'cant_get_feed', messageData: { url, err } });
+                rssForm.reject();
+              });
+          };
         },
       },
     });
 
-    const formInput = document.body.querySelector('#rss-input');
+    const formInput = document.querySelector('#rss-input');
     formInput.addEventListener(
       'input',
       (e) => {
@@ -75,18 +78,18 @@ const app = () => {
       },
     );
 
-    const formSubmitButton = document.body.querySelector('#rss-submit');
+    const formSubmitButton = document.querySelector('#rss-form');
     formSubmitButton.addEventListener(
-      'click',
+      'submit',
       (e) => {
-        if (rssForm.can('send')) {
-          rssForm.send();
-        }
         e.preventDefault();
+        if (rssForm.can('send')) {
+          rssForm.send()(e.target);
+        }
       },
     );
 
-    const rssContentButton = document.body.querySelector('#feeds-content');
+    const rssContentButton = document.querySelector('#feeds-content');
     rssContentButton.addEventListener(
       'click',
       (e) => {
