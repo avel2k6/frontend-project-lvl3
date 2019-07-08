@@ -2,6 +2,12 @@ import axios from 'axios';
 import { retry } from '@lifeomic/attempt'; // https://github.com/lifeomic/attempt
 
 export const getFeedData = url => new Promise((feedResolve, feedReject) => {
+  const axiosOptions = {
+    method: 'get',
+    url: `https://cors-anywhere.herokuapp.com/${url}`,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  };
+
   const retryOptions = {
     delay: 300,
     maxAttempts: 3,
@@ -17,12 +23,7 @@ export const getFeedData = url => new Promise((feedResolve, feedReject) => {
     calculateDelay: null,
   };
 
-  retry(() => axios({
-    method: 'get',
-    url: `https://cors-anywhere.herokuapp.com/${url}`,
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-  }),
-  retryOptions)
+  retry(() => axios(axiosOptions), retryOptions)
     .then((data) => {
       feedResolve(data);
     })
