@@ -23,7 +23,7 @@ const prettyHTML = (string) => {
   return dom.body.innerHTML;
 };
 
-const makeFeedItemsCollection = (items, source) => items.map(
+const makeFeedItemsCollection = (items, itemSource, formCurrentState) => items.map(
   (item) => {
     const { itemTitle, itemLink } = item;
     const itemDiv = document.createElement('div');
@@ -35,9 +35,18 @@ const makeFeedItemsCollection = (items, source) => items.map(
         </div>
         <div class="mt-auto p-2 w-100">
           <hr class="my-2">
-          <button data-link="${itemLink}" data-source="${source}" data-toggle="modal" data-target="#rssModal" type="button" class="btn btn-secondary btn-details">Подробней</button>
+          <button data-link="${itemLink}" data-source="${itemSource}" data-toggle="modal" data-target="#rssModal" type="button" class="btn btn-secondary btn-details">Подробней</button>
         </div>
       `;
+    itemDiv.querySelector('[data-link]').addEventListener(
+      'click',
+      (e) => {
+        const { target } = e;
+        const { link, source } = target.dataset;
+        const state = formCurrentState;
+        state.previewData = { link, source };
+      },
+    );
     return itemDiv;
   },
 )
@@ -49,11 +58,11 @@ export default (state) => {
     resources: ruJson,
   });
 
-  const formInput = document.body.querySelector('#rss-input');
-  const formSubmit = document.body.querySelector('#rss-submit');
-  const formFeedsList = document.body.querySelector('#feeds-list > ul');
-  const infoBlock = document.body.querySelector('info');
-  const spinner = document.body.querySelector('#search-spinner');
+  const formInput = document.querySelector('#rss-input');
+  const formSubmit = document.querySelector('#rss-submit');
+  const formFeedsList = document.querySelector('#feeds-list > ul');
+  const infoBlock = document.querySelector('info');
+  const spinner = document.querySelector('#search-spinner');
 
   watch(
     state,
@@ -76,11 +85,13 @@ export default (state) => {
           formSubmit.setAttribute('disabled', true);
           spinner.classList.remove('d-none');
           break;
-        default:
+        case 'default':
           formInput.value = '';
           formInput.classList.remove('is-valid', 'is-invalid');
           formSubmit.setAttribute('disabled', true);
           spinner.classList.add('d-none');
+          break;
+        default:
           break;
       }
     },
@@ -99,7 +110,7 @@ export default (state) => {
         newListElement.innerHTML = `<b>${title}</b><br>${description}`;
         formFeedsList.append(newListElement);
 
-        const allFeedsContent = document.body.querySelector('#feeds-content');
+        const allFeedsContent = document.querySelector('#feeds-content');
         const feedHeader = document.createElement('div');
         feedHeader.innerHTML = `<h2 class="w-100">${title}</h2>`;
         allFeedsContent.append(feedHeader);
@@ -111,7 +122,7 @@ export default (state) => {
         currentFeedContent.setAttribute('data-feed-source', feedContentId);
         allFeedsContent.append(currentFeedContent);
 
-        const feedItemsList = makeFeedItemsCollection(items, source);
+        const feedItemsList = makeFeedItemsCollection(items, source, state);
         feedItemsList.forEach(
           feedItem => currentFeedContent.prepend(feedItem),
         );
@@ -123,8 +134,8 @@ export default (state) => {
         } = findFeedByData(state, oldData);
         const items = _.difference(newData, oldData);
         const feedContentId = generateId(url);
-        const feedItemsList = makeFeedItemsCollection(items, source);
-        const currentFeedContent = document.body.querySelector(`[data-feed-source='${feedContentId}']`);
+        const feedItemsList = makeFeedItemsCollection(items, source, state);
+        const currentFeedContent = document.querySelector(`[data-feed-source='${feedContentId}']`);
         feedItemsList.forEach(
           feedItem => currentFeedContent.prepend(feedItem),
         );
@@ -164,9 +175,9 @@ export default (state) => {
         .find(({ itemLink }) => itemLink === detailsLink);
       // console.dir(itemTitle, itemDescription);
       const prettyDescription = prettyHTML(itemDescription);
-      const modalTitle = document.body.querySelector('.modal-title');
+      const modalTitle = document.querySelector('.modal-title');
       modalTitle.innerHTML = itemTitle;
-      const modalBody = document.body.querySelector('.modal-body');
+      const modalBody = document.querySelector('.modal-body');
       modalBody.innerHTML = prettyDescription;
     },
   );

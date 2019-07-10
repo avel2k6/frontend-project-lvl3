@@ -45,7 +45,7 @@ const app = () => {
             state.feeds.push(url);
             feed.getFeedData(url)
               .then((data) => {
-                const parsedData = feed.parseFeedData(data);
+                const parsedData = feed.parseFeedData(data.data);
                 if (parsedData.isRss) {
                   state.feedsData.push({ url, ...parsedData });
                   state.errors = [];
@@ -85,18 +85,6 @@ const app = () => {
         e.preventDefault();
         if (rssForm.can('send')) {
           rssForm.send()(e.target);
-        }
-      },
-    );
-
-    const rssContentButton = document.querySelector('#feeds-content');
-    rssContentButton.addEventListener(
-      'click',
-      (e) => {
-        const { target } = e;
-        if (target.classList.contains('btn-details')) {
-          const { link, source } = target.dataset;
-          state.previewData = { link, source };
         }
       },
     );

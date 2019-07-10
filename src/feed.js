@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { retry } from '@lifeomic/attempt'; // https://github.com/lifeomic/attempt
 
-export const getFeedData = url => new Promise((feedResolve, feedReject) => {
+export const getFeedData = (url) => {
   const axiosOptions = {
     method: 'get',
     url: `https://cors-anywhere.herokuapp.com/${url}`,
@@ -23,18 +23,12 @@ export const getFeedData = url => new Promise((feedResolve, feedReject) => {
     calculateDelay: null,
   };
 
-  retry(() => axios(axiosOptions), retryOptions)
-    .then((data) => {
-      feedResolve(data);
-    })
-    .catch((error) => {
-      feedReject(error);
-    });
-});
+  return retry(() => axios(axiosOptions), retryOptions);
+};
 
 export const parseFeedData = (dataFromFeed) => {
   const parser = new DOMParser();
-  const dom = parser.parseFromString(dataFromFeed.data, 'application/xml');
+  const dom = parser.parseFromString(dataFromFeed, 'application/xml');
   const rssTag = dom.querySelector('rss');
   if (!rssTag) { return { isRss: false }; }
 
@@ -77,11 +71,11 @@ export const getFeedDiff = (oldFeed, newFeed) => {
 
 export const setAutoUpdater = (curretState, feedTargetUrl) => {
   const dataTimeOut = 5000;
-  const errorTimeOut = 30000;
+  // const errorTimeOut = 30000;
   const updater = (state, feedUrl) => {
     getFeedData(feedUrl)
       .then((newData) => {
-        const newParsedData = parseFeedData(newData);
+        const newParsedData = parseFeedData(newData.data);
         const currentState = state;
         const currentData = state.feedsData.find(({ url }) => url === feedUrl);
         const index = state.feedsData.findIndex(({ url }) => url === feedUrl);
@@ -90,10 +84,9 @@ export const setAutoUpdater = (curretState, feedTargetUrl) => {
           const oldItems = state.feedsData[index].items;
           currentState.feedsData[index].items = [...oldItems, ...newItems];
         }
-        setTimeout(() => { updater(state, feedUrl); }, dataTimeOut);
       })
-      .catch(() => {
-        setTimeout(() => { updater(state, feedUrl); }, errorTimeOut);
+      .finally(() => {
+        setTimeout(() => { updater(state, feedUrl); }, dataTimeOut);
       });
   };
   setTimeout(() => { updater(curretState, feedTargetUrl); }, dataTimeOut);
