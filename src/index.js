@@ -7,7 +7,7 @@ import * as feed from './feed';
 
 const app = () => {
   const appState = {
-    formState: 'default',
+    formState: 'initial',
     formInput: '',
     errors: [],
     feeds: [],
@@ -18,12 +18,12 @@ const app = () => {
   const controlForm = (formCurrentState) => {
     const state = formCurrentState;
     const rssForm = new StateMachine({
-      init: 'default',
+      init: 'initial',
       transitions: [
-        { name: 'validate', from: ['invalid', 'valid', 'default'], to: 'valid' },
-        { name: 'invalidate', from: ['invalid', 'valid', 'default'], to: 'invalid' },
+        { name: 'validate', from: ['invalid', 'valid', 'initial'], to: 'valid' },
+        { name: 'invalidate', from: ['invalid', 'valid', 'initial'], to: 'invalid' },
         { name: 'send', from: 'valid', to: 'check' },
-        { name: 'reset', from: 'check', to: 'default' },
+        { name: 'reset', from: 'check', to: 'initial' },
         { name: 'reject', from: 'check', to: 'invalid' },
       ],
       methods: {

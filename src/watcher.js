@@ -85,7 +85,7 @@ export default (state) => {
           formSubmit.setAttribute('disabled', true);
           spinner.classList.remove('d-none');
           break;
-        case 'default':
+        case 'initial':
           formInput.value = '';
           formInput.classList.remove('is-valid', 'is-invalid');
           formSubmit.setAttribute('disabled', true);
